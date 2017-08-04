@@ -2,7 +2,6 @@
 From: https://github.com/gpleiss/efficient_densenet_pytorch
 """
 
-from __future__ import print_function
 import math
 import torch
 from torch.autograd import Function, Variable
@@ -135,8 +134,6 @@ class _DenseBlock(Module):
         self.final_num_features = num_input_features + (growth_rate * num_layers)
         self.shared_alloc = _SharedAllocation(storage)
         self.register_buffer('CatBN_output_buffer', self.storage)
-
-        print('bnsize _DenseBlock', bn_size)
 
         super(_DenseBlock, self).__init__()
         for i in range(num_layers):
