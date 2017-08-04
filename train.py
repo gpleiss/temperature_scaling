@@ -181,9 +181,8 @@ def train(data, save, valid_size=5000, seed=None,
     #
     # IMPORTANT! We need to use the same validation set for temperature
     # scaling, so we're going to save the indices for later
-    data_root = os.path.join(data, 'cifar100')
-    train_set = tv.datasets.CIFAR100(data_root, train=True, transform=train_transforms, download=True)
-    valid_set = tv.datasets.CIFAR100(data_root, train=True, transform=test_transforms, download=False)
+    train_set = tv.datasets.CIFAR100(data, train=True, transform=train_transforms, download=True)
+    valid_set = tv.datasets.CIFAR100(data, train=True, transform=test_transforms, download=False)
     indices = torch.randperm(len(train_set))
     train_indices = indices[:len(indices) - valid_size]
     valid_indices = indices[len(indices) - valid_size:] if valid_size else None
@@ -240,11 +239,8 @@ def train(data, save, valid_size=5000, seed=None,
 
             # When we save the model, we're also going to
             # include the validation indices
-            to_save = {
-                model: model.state_dict(),
-                valid_indices: valid_indices,
-            }
-            torch.save(to_save, os.path.join(save, 'model_and_validation_indices.pth'))
+            torch.save(model.state_dict(), os.path.join(save, 'model.pth'))
+            torch.save(valid_indices, os.path.join(save, 'valid_indices.pth'))
 
     print('Done!')
 
