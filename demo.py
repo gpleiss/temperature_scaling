@@ -3,7 +3,7 @@ import os
 import torch
 import torchvision as tv
 from torch.utils.data.sampler import SubsetRandomSampler
-from models import DenseNetEfficientMulti
+from models import DenseNet
 from temperature_scaling import ModelWithTemperature
 
 
@@ -50,7 +50,7 @@ def demo(data, save, depth=40, growth_rate=12, batch_size=256):
     if (depth - 4) % 3:
         raise Exception('Invalid depth')
     block_config = [(depth - 4) // 6 for _ in range(3)]
-    orig_model = DenseNetEfficientMulti(
+    orig_model = DenseNet(
         growth_rate=growth_rate,
         block_config=block_config,
         num_classes=100

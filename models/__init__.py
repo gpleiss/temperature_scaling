@@ -1,6 +1,6 @@
-from .densenet_efficient_multi_gpu import DenseNetEfficientMulti
+from .densenet import DenseNet
 
 
 __all__ = [
-    DenseNetEfficientMulti
+    DenseNet
 ]

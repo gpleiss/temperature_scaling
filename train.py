@@ -9,9 +9,8 @@ import time
 import torch
 import torchvision as tv
 from torch import nn, optim
-from torch.autograd import Variable
 from torch.utils.data.sampler import SubsetRandomSampler
-from models import DenseNetEfficientMulti
+from models import DenseNet
 
 
 class Meter():
@@ -37,13 +36,11 @@ class Meter():
     def update(self, data, n=1):
         """
         Update the meter
-        data (Variable, Tensor, or float): update value for the meter
+        data (Tensor, or float): update value for the meter
             Size of data should match size of ``name'' in the initialized args
         """
         self._count = self._count + n
-        if isinstance(data, torch.autograd.Variable):
-            self._last_value.copy_(data.data)
-        elif isinstance(data, torch.Tensor):
+        if torch.is_tensor(data):
             self._last_value.copy_(data)
         else:
             self._last_value.fill_(data)
@@ -61,18 +58,6 @@ class Meter():
     def __repr__(self):
         return '\t'.join(['%s: %.5f (%.3f)' % (n, lv, v)
             for n, lv, v in zip(self.name, self._last_value, self.value())])
-
-
-def _set_lr(optimizer, epoch, n_epochs, lr):
-    lr = lr
-    if float(epoch) / n_epochs > 0.75:
-        lr = lr * 0.01
-    elif float(epoch) / n_epochs > 0.5:
-        lr = lr * 0.1
-
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-        print(param_group['lr'])
 
 
 def run_epoch(loader, model, criterion, optimizer, epoch=0, n_epochs=0, train=True):
@@ -93,21 +78,28 @@ def run_epoch(loader, model, criterion, optimizer, epoch=0, n_epochs=0, train=Tr
             model.zero_grad()
             optimizer.zero_grad()
 
-        # Forward pass
-        input_var = Variable(input, volatile=(not train)).cuda(async=True)
-        target_var = Variable(target, volatile=(not train), requires_grad=False).cuda(async=True)
-        output_var = model(input_var)
-        loss = criterion(output_var, target_var)
+            # Forward pass
+            input = input.cuda()
+            target = target.cuda()
+            output = model(input)
+            loss = criterion(output, target)
 
-        # Backward pass
-        if train:
+            # Backward pass
             loss.backward()
             optimizer.step()
             optimizer.n_iters = optimizer.n_iters + 1 if hasattr(optimizer, 'n_iters') else 1
 
+        else:
+            with torch.no_grad():
+                # Forward pass
+                input = input.cuda()
+                target = target.cuda()
+                output = model(input)
+                loss = criterion(output, target)
+
         # Accounting
-        _, predictions_var = torch.topk(output_var, 1)
-        error = 1 - torch.eq(predictions_var, target_var).float().mean()
+        _, predictions = torch.topk(output, 1)
+        error = 1 - torch.eq(predictions, target).float().mean()
         batch_time = time.time() - end
         end = time.time()
 
@@ -194,24 +186,26 @@ def train(data, save, valid_size=5000, seed=None,
                                                sampler=SubsetRandomSampler(valid_indices))
 
     # Make model, criterion, and optimizer
-    model = DenseNetEfficientMulti(
+    model = DenseNet(
         growth_rate=growth_rate,
         block_config=block_config,
         num_classes=100
     )
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=momentum, nesterov=True)
-
     # Wrap model if multiple gpus
     if torch.cuda.device_count() > 1:
         model_wrapper = torch.nn.DataParallel(model).cuda()
     else:
         model_wrapper = model.cuda()
+    print(model_wrapper)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model_wrapper.parameters(), lr=lr, momentum=momentum, nesterov=True)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[0.5 * n_epochs, 0.75 * n_epochs], gamma=0.1)
 
     # Train model
     best_error = 1
     for epoch in range(1, n_epochs + 1):
-        _set_lr(optimizer, epoch, n_epochs, lr)
+        scheduler.step()
         run_epoch(
             loader=train_loader,
             model=model_wrapper,
