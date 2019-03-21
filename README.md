@@ -49,7 +49,7 @@ python demo.py --data <path_to_data> --save <save_folder_dest>
 ```
 
 
-## To use in a project
+## To use in a PyTorch project
 
 Copy the file `temperature_scaling.py` to your repo.
 Train a model, and **save the validation set**.
@@ -64,4 +64,57 @@ valid_loader = ... # Create a DataLoader from the SAME VALIDATION SET used to tr
 
 scaled_model = ModelWithTemperature(orig_model)
 scaled_model.set_temperature(valid_loader)
+```
+
+## To use in a fast.ai project
+1. Load your databunch and model
+```
+from temperature_scaling import ModelWithTemperature
+
+# Load data
+data = ImageDataBunch.from_folder(path, valid_pct=.2)
+
+# Train
+learn = cnn_learner(data, models.resnet34, metrics=accuracy)
+learn.fit_one_cycle(10)
+learn.save('model')# uncalibrated model
+
+orig_model = learn.model
+valid_loader = data.valid_dl.dl # Create a DataLoader from the SAME VALIDATION SET used to train orig_model
+```
+
+2. Find model temperature scale
+```
+scaled_model = ModelWithTemperature(orig_model)
+scaled_model.set_temperature(valid_loader)
+```
+
+3. Use the temperature scale on the original model output logits
+```
+temperature_scale = 10.699
+
+# softmax = e^(z/T) / sum_i e^(z_i/T)
+def softmax_calibrated(x, scale=1.):
+    if x.ndim == 1:
+        x = x.reshape((1, -1))
+        
+    max_x = x.max(dim=1)[0].reshape((-1, 1))
+    exp_x = torch.exp((x - max_x) / scale)
+
+    return exp_x / exp_x.sum(dim=1).reshape((-1, 1))
+
+data_loader = data.test_dl.dl
+data_length = len(data_loader)
+for batch, (images, labels) in enumerate(data_loader, 1):
+    print(f'Step [{batch}/{data_length}], processed {len(labels)} images')
+
+    images = images.to(device)
+    labels = labels.to(device)
+
+    logits = learner.model(images)
+    preds = softmax_calibrated(logits)
+    preds_calibrated = softmax_calibrated(logits, scale=temperature_scale)
+
+    print(f'preds {preds}')
+    print(f'preds_calibrated {preds_calibrated}')
 ```
