@@ -91,8 +91,10 @@ scaled_model.set_temperature(valid_loader)
 
 3. Use the temperature scale on the original model output logits
 ```
-temperature_scale = 10.699
-
+temperature_scale = 1.699
+normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std =[0.229, 0.224, 0.225])
+                                 
 # softmax = e^(z/T) / sum_i e^(z_i/T)
 def softmax_calibrated(x, scale=1.):
     if x.ndim == 1:
@@ -109,6 +111,8 @@ for batch, (images, labels) in enumerate(data_loader, 1):
     print(f'Step [{batch}/{data_length}], processed {len(labels)} images')
 
     images = images.to(device)
+    # Do not forget to normalize your images first.
+    [normalize(image) for image in images]
     labels = labels.to(device)
 
     logits = learner.model(images)
