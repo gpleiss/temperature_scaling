@@ -60,6 +60,7 @@ class ModelWithTemperature(nn.Module):
         optimizer = optim.LBFGS([self.temperature], lr=0.01, max_iter=50)
 
         def eval():
+            optimizer.zero_grad()
             loss = nll_criterion(self.temperature_scale(logits), labels)
             loss.backward()
             return loss
