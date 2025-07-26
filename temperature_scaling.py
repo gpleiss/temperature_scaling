@@ -42,6 +42,12 @@ class ModelWithTemperature(nn.Module):
         # First: collect all the logits and labels for the validation set
         logits_list = []
         labels_list = []
+
+        # Prevent batchnorm statistics from changing
+        training_mode = self.training
+        self.eval()
+
+        # Compute inputs
         with torch.no_grad():
             for input, label in valid_loader:
                 input = input.cuda()
@@ -72,6 +78,8 @@ class ModelWithTemperature(nn.Module):
         print('Optimal temperature: %.3f' % self.temperature.item())
         print('After temperature - NLL: %.3f, ECE: %.3f' % (after_temperature_nll, after_temperature_ece))
 
+        # Reset back to training mode, if applicable
+        self.train(training_mode)
         return self
 
 
