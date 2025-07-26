@@ -1,3 +1,10 @@
+# WARNING: REPO UNMAINTAINED
+
+I created this repo 8 years ago for PyTorch 0.3 as a simple demonstration of temperature scaling.
+It wasn't designed to be a standalone package, and it hasn't been maintained for years.
+
+If you're looking for a well-maintained package that implements the algorithm, there are many good ones out there, including [https://github.com/dholzmueller/probmetrics](probmetrics)!
+
 # Temperature Scaling
 A simple way to calibrate your neural network.
 The `temperature_scaling.py` module can be easily used to calibrated any trained model.
